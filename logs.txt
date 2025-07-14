@@ -1,0 +1,99 @@
+./vm-inside.sh 
+Please provide VM configuration (press Enter to accept defaults)
+Enter VM name [ubuntu-cloud-vm]: ok
+Enter RAM in MB [2048]: 
+Enter number of CPUs [2]: 
+Enter disk size [10G]: 
+Generating SSH key...
+Creating VM disk...
+Image resized.
+Generating cloud-init ISO...
+Creating VM ok with LAN bridge br0...
+
+Starting install...
+Creating domain...                                                                                         |    0 B  00:00:00     
+Domain creation completed.
+VM ok created with LAN IP 192.168.10.120/24.
+Waiting for VM to initialize (30 seconds)...
+Testing LAN connectivity...
+Ping failed. Troubleshooting steps:
+1. Check VM status: virsh list
+2. View console: virsh console ok
+3. Verify network config in VM: ip a
+4. Check bridge config on host: brctl show br0
+
+VM successfully created with LAN connectivity!
+VM Name: ok
+LAN IP Address: 192.168.10.120/24
+Gateway: 192.168.10.254
+DNS Servers: 8.8.8.8,8.8.4.4
+SSH Private Key: /home/devteam/.ssh/ok_key
+To connect: ssh -i /home/devteam/.ssh/ok_key ubuntu@192.168.10.120
+
+Note: Ensure your LAN network matches this configuration:
+- IP range: 192.168.10.0/24
+- Gateway: 192.168.10.254 must be accessible
+devteam@D3020-1NBP212:~/Desktop/csp$ ping 192.168.10.120
+PING 192.168.10.120 (192.168.10.120) 56(84) bytes of data.
+From 192.168.10.56 icmp_seq=1 Destination Host Unreachable
+From 192.168.10.56 icmp_seq=2 Destination Host Unreachable
+From 192.168.10.56 icmp_seq=3 Destination Host Unreachable
+^C
+--- 192.168.10.120 ping statistics ---
+6 packets transmitted, 0 received, +3 errors, 100% packet loss, time 5110ms
+pipe 4
+devteam@D3020-1NBP212:~/Desktop/csp$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eno1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq master br0 state UP group default qlen 1000
+    link/ether bc:30:5b:e9:52:19 brd ff:ff:ff:ff:ff:ff
+    altname enp4s0
+3: enp5s0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel state DOWN group default qlen 1000
+    link/ether 00:08:54:72:21:2e brd ff:ff:ff:ff:ff:ff
+5: virbr0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 52:54:00:60:bb:90 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+       valid_lft forever preferred_lft forever
+6: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
+    link/ether 3e:41:ee:21:84:f2 brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+7: vnet0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master virbr0 state UNKNOWN group default qlen 1000
+    link/ether fe:54:00:92:df:38 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::fc54:ff:fe92:df38/64 scope link 
+       valid_lft forever preferred_lft forever
+9: vnet2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master virbr0 state UNKNOWN group default qlen 1000
+    link/ether fe:54:00:11:b0:6b brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::fc54:ff:fe11:b06b/64 scope link 
+       valid_lft forever preferred_lft forever
+10: vnet3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master virbr0 state UNKNOWN group default qlen 1000
+    link/ether fe:54:00:5f:a3:67 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::fc54:ff:fe5f:a367/64 scope link 
+       valid_lft forever preferred_lft forever
+11: vnet4: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/ether fe:54:00:d7:fc:77 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::fc54:ff:fed7:fc77/64 scope link 
+       valid_lft forever preferred_lft forever
+12: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether f2:f2:dd:a1:fb:80 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.10.56/24 brd 192.168.10.255 scope global noprefixroute br0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::f735:295b:1b0e:acb1/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+13: vnet5: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master br0 state UNKNOWN group default qlen 1000
+    link/ether fe:54:00:e7:ed:63 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::fc54:ff:fee7:ed63/64 scope link 
+       valid_lft forever preferred_lft forever
+devteam@D3020-1NBP212:~/Desktop/csp$ ping 192.168.10.120
+PING 192.168.10.120 (192.168.10.120) 56(84) bytes of data.
+From 192.168.10.56 icmp_seq=1 Destination Host Unreachable
+From 192.168.10.56 icmp_seq=2 Destination Host Unreachable
+From 192.168.10.56 icmp_seq=3 Destination Host Unreachable
+^C
+--- 192.168.10.120 ping statistics ---
+5 packets transmitted, 0 received, +3 errors, 100% packet loss, time 4086ms
+pipe 3
