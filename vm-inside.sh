@@ -17,6 +17,12 @@ VM_CPUS=$(prompt_input "Enter number of CPUs" "2")
 VM_DISK_SIZE=$(prompt_input "Enter disk size" "10G")
 ORIGINAL_CLOUD_IMAGE=$(pwd)/ISOs/ubuntu-cloud.img
 
+# LAN Network Configuration
+LAN_IP="192.168.10.120/24"
+LAN_GATEWAY="192.168.10.254"
+LAN_DNS="8.8.8.8,8.8.4.4"  # Can use your local DNS if available
+LAN_BRIDGE="br0"           # Change to your host's bridge interface
+
 # Set variables
 SSH_KEY_FILE="$HOME/.ssh/${VM_NAME}_key"
 CLOUD_IMAGE="$(pwd)/ISOs/${VM_NAME}.img"
@@ -47,7 +53,7 @@ if [ ! -f "${CLOUD_IMAGE}" ]; then
     qemu-img resize "${CLOUD_IMAGE}" "${VM_DISK_SIZE}"
 fi
 
-# Create user-data with working netplan config
+# Create user-data with LAN network config
 cat > user-data <<EOF
 #cloud-config
 users:
@@ -64,6 +70,7 @@ ssh_pwauth: true
 disable_root: false
 
 packages:
+  - qemu-guest-agent
   - netplan.io
   - cloud-init
   - openssh-server
@@ -75,22 +82,43 @@ write_files:
         version: 2
         ethernets:
           ens3:
-            dhcp4: true
+            dhcp4: no
+            addresses: [${LAN_IP}]
+            routes:
+              - to: default
+                via: ${LAN_GATEWAY}
+            nameservers:
+              addresses: [${LAN_DNS//,/,\ }]
 
 runcmd:
+  - [ systemctl, enable, --now, qemu-guest-agent ]
   - [ netplan, apply ]
   - [ systemctl, restart, ssh ]
+  - [ systemctl, restart, cloud-init ]
 EOF
 
 # Create meta-data
-echo "instance-id: ${VM_NAME}" > meta-data
+cat > meta-data <<EOF
+instance-id: ${VM_NAME}
+local-hostname: ${VM_NAME}
+EOF
 
 # Create cloud-init ISO
 echo "Generating cloud-init ISO..."
 cloud-localds "${CLOUD_INIT_ISO}" user-data meta-data
 
-# Create the VM
-echo "Creating VM ${VM_NAME}..."
+# Check if bridge exists
+if ! ip link show ${LAN_BRIDGE} >/dev/null 2>&1; then
+    echo "Error: Bridge interface ${LAN_BRIDGE} not found!"
+    echo "Please create it first or specify an existing bridge."
+    echo "Common bridge creation steps:"
+    echo "1. Edit /etc/network/interfaces or use nmcli"
+    echo "2. Bridge your physical interface (e.g., eth0)"
+    exit 1
+fi
+
+# Create the VM with bridged network
+echo "Creating VM ${VM_NAME} with LAN bridge ${LAN_BRIDGE}..."
 virt-install \
     --name "${VM_NAME}" \
     --memory ${VM_RAM} \
@@ -98,34 +126,50 @@ virt-install \
     --disk path="${CLOUD_IMAGE}",format=qcow2 \
     --disk path="${CLOUD_INIT_ISO}",device=cdrom \
     --os-variant ubuntu20.04 \
-    --network network=default \
+    --network bridge=${LAN_BRIDGE},model=virtio \
     --graphics none \
     --import \
     --check path_in_use=off \
     --noautoconsole
 
-echo "VM ${VM_NAME} created. Waiting for it to boot and get an IP..."
+echo "VM ${VM_NAME} created with LAN IP ${LAN_IP}."
 
-# Wait for IP
-IP_ADDRESS=""
-for i in {1..30}; do
-    IP_ADDRESS=$(virsh domifaddr "${VM_NAME}" | awk -F'[ /]+' '/ipv4/ {print $5}')
-    [ -n "${IP_ADDRESS}" ] && break
-    sleep 5
-done
+# Wait for VM to boot
+echo "Waiting for VM to initialize (30 seconds)..."
+sleep 30
+
+# Verify connectivity
+echo "Testing LAN connectivity..."
+if ping -c 3 ${LAN_IP%/*} >/dev/null 2>&1; then
+    echo "Ping successful to ${LAN_IP%/*}"
+    
+    echo "Testing SSH connection..."
+    if ssh -i "${SSH_KEY_FILE}" -o StrictHostKeyChecking=no -o ConnectTimeout=5 ubuntu@${LAN_IP%/*} true; then
+        echo "SSH connection successful!"
+    else
+        echo "SSH connection failed. VM may still be initializing."
+    fi
+else
+    echo "Ping failed. Troubleshooting steps:"
+    echo "1. Check VM status: virsh list"
+    echo "2. View console: virsh console ${VM_NAME}"
+    echo "3. Verify network config in VM: ip a"
+    echo "4. Check bridge config on host: brctl show ${LAN_BRIDGE}"
+fi
 
 # Clean up cloud-init files
 rm -f user-data meta-data "${CLOUD_INIT_ISO}"
-omifaddr 
+
 # Output info
 echo ""
-echo "VM successfully created in default NAT network!"
+echo "VM successfully created with LAN connectivity!"
 echo "VM Name: ${VM_NAME}"
-echo "Private IP Address: ${IP_ADDRESS:-Not Found}"
+echo "LAN IP Address: ${LAN_IP}"
+echo "Gateway: ${LAN_GATEWAY}"
+echo "DNS Servers: ${LAN_DNS}"
 echo "SSH Private Key: ${SSH_KEY_FILE}"
-echo "To connect:"
-echo "1. First connect to your host machine"
-echo "2. Then from host: ssh -i ${SSH_KEY_FILE} ubuntu@${IP_ADDRESS}"
+echo "To connect: ssh -i ${SSH_KEY_FILE} ubuntu@${LAN_IP%/*}"
 echo ""
-echo "Note: This VM uses the default NAT network and is not directly exposed to your LAN."
-echo "To enable LAN access, you would need to set up port forwarding on the host."
+echo "Note: Ensure your LAN network matches this configuration:"
+echo "- IP range: 192.168.10.0/24"
+echo "- Gateway: 192.168.10.254 must be accessible"
